@@ -40,14 +40,35 @@ export class Canvas {
 	websockets: WebSocket[] = [];
 	constructor(state: DurableObjectState, env: Env) {
 		this.state = state;
+		this.state.blockConcurrencyWhile(async () => {
+			if (this.cells.length === 0) {
+				// Check if there's any persisted data
+				const storedCells = await this.state.storage.get<Cell[]>('cells')
+				this.cells = storedCells || []
+			}
+		})
 	}
 
 	async fetch(request: Request): Promise<Response> {
+		this.updateAlarm()
 		const url = new URL(request.url);
 		if (url.pathname.startsWith('/api/websocket')) {
 			return this.handleWebsocket(request)
 		}
 		return new Response('hello from do!')
+	}
+
+	async updateAlarm() {
+		// Save the current data every 10 seconds
+		let currentAlarm = await this.state.storage.getAlarm();
+		if (!currentAlarm) {
+			this.state.storage.setAlarm(Date.now() + 10 * 1000);
+		}
+	}
+
+	async alarm() {
+		// Save the current data
+		this.state.storage.put('cells', this.cells)
 	}
 
 	async handleWebsocket(request: Request): Promise<Response> {
@@ -59,6 +80,7 @@ export class Canvas {
 
 		server.addEventListener('message', (msg) => {
 			try {
+				this.updateAlarm()
 				const data = JSON.parse(msg.data.toString())
 				if (isCellArray(data)) {
 					this.cells = data
