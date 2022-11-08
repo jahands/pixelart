@@ -48,8 +48,9 @@ const pathname = window.location.pathname
 const lastSegment = pathname.split("/").pop()
 const wsUri = `wss://${window.location.host}/api/websocket/${lastSegment}`
 console.log('wsUri:', wsUri)
-const socket = new WebSocket(wsUri)
-socket.addEventListener("message", (e) => {
+let socket = new WebSocket(wsUri)
+
+function onWsMessage(e) {
   const data = JSON.parse(e.data)
   if (isCellArray(data)) {
     for (const cell of data) {
@@ -60,7 +61,25 @@ socket.addEventListener("message", (e) => {
     const { x, y, color } = data
     fillCell(x, y, color)
   }
-})
+
+}
+
+async function onClose() {
+  // Sleep for 1 seconds and try to reconnect
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  if (socket) {
+    socket.close()
+    socket.removeEventListener("close", onClose)
+    socket.removeEventListener("message", onWsMessage)
+    socket = null
+  }
+  socket = new WebSocket(wsUri)
+  socket.addEventListener("close", onClose)
+  socket.addEventListener("message", onWsMessage)
+}
+
+socket.addEventListener("close", onClose)
+socket.addEventListener("message", onWsMessage)
 
 function sendToServer(cell) {
   socket.send(JSON.stringify(cell))
