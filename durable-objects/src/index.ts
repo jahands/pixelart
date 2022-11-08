@@ -56,10 +56,6 @@ export class Canvas {
 		}
 		const [client, server] = Object.values(new WebSocketPair())
 		// Add listeners
-		server.addEventListener('open', () => {
-			// Push existing state to client
-			server.send(JSON.stringify(this.cells))
-		})
 
 		server.addEventListener('message', (msg) => {
 			try {
@@ -86,6 +82,9 @@ export class Canvas {
 		server.accept()
 
 		this.websockets.push(server)
+
+		// Push existing data
+		server.send(JSON.stringify(this.cells))
 
 		return new Response(null, {
 			status: 101,
