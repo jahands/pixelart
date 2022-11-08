@@ -1,0 +1,12 @@
+name = "durable-objects"
+main = "src/index.ts"
+compatibility_date = "2022-11-08"
+
+[durable_objects]
+bindings = [
+  { name = "CANVAS", class_name = "Canvas" }
+]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["Canvas"] # Array of new classes

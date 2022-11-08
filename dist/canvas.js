@@ -31,6 +31,41 @@ drawingContext.fillRect(0, 0, canvas.width, canvas.height)
   )
 }
 
+// Utils
+function isCell(obj) {
+  return obj
+    && typeof obj.color === 'string'
+    && typeof obj.x === 'number'
+    && typeof obj.y === 'number'
+}
+
+function isCellArray(obj) {
+  return Array.isArray(obj) && obj.every(isCell)
+}
+
+// Set up websocket
+const pathname = window.location.pathname
+const lastSegment = pathname.split("/").pop()
+const wsUri = `wss://${window.location.host}/api/websocket/${lastSegment}`
+console.log('wsUri:', wsUri)
+const socket = new WebSocket(wsUri)
+socket.addEventListener("message", (e) => {
+  const data = JSON.parse(e.data)
+  if (isCellArray(data)) {
+    for (const cell of data) {
+      const { x, y, color } = cell
+      fillCell(x, y, color)
+    }
+  } else if (isCell(data)) {
+    const { x, y, color } = data
+    fillCell(x, y, color)
+  }
+})
+
+function sendToServer(cell) {
+  socket.send(JSON.stringify(cell))
+}
+
 function handleCanvasMousedown(e) {
   // Ensure user is using their primary mouse button
   if (e.button !== 0) {
@@ -51,6 +86,7 @@ function handleCanvasMousedown(e) {
     }
   } else {
     fillCell(cellX, cellY)
+    sendToServer({ x: cellX, y: cellY, color: colorInput.value })
   }
 }
 
@@ -67,15 +103,15 @@ function handleToggleGuideChange() {
   guide.style.display = toggleGuide.checked ? null : "none"
 }
 
-function fillCell(cellX, cellY) {
+function fillCell(cellX, cellY, color = colorInput.value) {
   const startX = cellX * cellPixelLength
   const startY = cellY * cellPixelLength
 
-  drawingContext.fillStyle = colorInput.value
+  drawingContext.fillStyle = color
   drawingContext.fillRect(startX, startY, cellPixelLength, cellPixelLength)
   colorHistory[`${cellX}_${cellY}`] = colorInput.value
 }
 
 canvas.addEventListener("mousedown", handleCanvasMousedown)
 clearButton.addEventListener("click", handleClearButtonClick)
-toggleGuide.addEventListener("change", handleToggleGuideChange);
+toggleGuide.addEventListener("change", handleToggleGuideChange)
