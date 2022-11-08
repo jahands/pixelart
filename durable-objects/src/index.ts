@@ -71,6 +71,13 @@ export class Canvas {
 		this.state.storage.put('cells', this.cells)
 	}
 
+	async sendToClients(cells: Cell[]) {
+		// Send to all clients
+		for (const client of this.websockets) {
+			client.send(JSON.stringify(cells))
+		}
+	}
+
 	async handleWebsocket(request: Request): Promise<Response> {
 		if (request.headers.get('Upgrade') !== 'websocket') {
 			return new Response('Expected Upgrade: websocket', { status: 426 })
@@ -84,6 +91,7 @@ export class Canvas {
 				const data = JSON.parse(msg.data.toString())
 				if (isCellArray(data)) {
 					this.cells = data
+					this.sendToClients(data)
 				} else if (isCell(data)) {
 					const existing = this.cells.filter(cell => cell.x === data.x && cell.y === data.y)
 					if (existing.length > 0) {
@@ -91,10 +99,7 @@ export class Canvas {
 					} else {
 						this.cells.push(data)
 					}
-				}
-				// Send to all clients
-				for (const client of this.websockets) {
-					client.send(JSON.stringify(this.cells))
+					this.sendToClients([data])
 				}
 			} catch {
 				// Ignore invalid data for now
